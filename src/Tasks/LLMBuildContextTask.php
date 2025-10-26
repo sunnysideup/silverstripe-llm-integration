@@ -15,7 +15,7 @@ class LLMBuildContextTask extends BuildTask
 
     public function run($request)
     {
-        $obj = Injector::inst()->get(BuildContext::class);
+        $obj = BuildContext::singleton();
         $obj->run();
     }
 }

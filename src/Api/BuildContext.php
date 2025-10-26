@@ -40,22 +40,7 @@ class BuildContext
         'belongs_many_many',
     ];
 
-    private static string $context_instructions = 'Use the attached file as your reference context for answering any question.';
-    private static string $standard_instructions = <<<TXT
-When answering:
-- You are an expert SilverStripe developer. Provide concise and accurate answers based on the provided context.
-- Output PHP code only (no prose, no backticks, no ```php fences).
-- Use PHP 8.3 syntax and SilverStripe ORM where possible.
-- The code must run without errors in a standard Silverstripe 5 project.
-- As part of the php code, you can ask yourself a question, if needed. You do it like this: \Sunnysideup\LLMIntegration\Api\ChatWithChatGPT::singleton()->singleton()->AskQuestionOutsideOfThread(\$question): string; This will be helpful if you want to review some content as part your PHP code so that you can give a better answer. You can specificy yourself how you want the answer to be and then check for this answer in PHP.
-- Always check canView(), canCreate(), canEdit(), and canDelete() as appropriate.
-- The final line MUST be a return statement with a human-readable answer.
-- Return the human-readable answer as HTML.
 
-TXT;
-
-    private static string $model_name = 'gpt-4o';
-    private static float $temperature = 0.3;
 
     private static $classes_to_exclude = [
         DataObject::class,
@@ -136,17 +121,18 @@ TXT;
             }
             $config = Injector::inst()->get($className)->config();
 
-
             $parentClass = $reflection->getParentClass();
 
             $fields = [];
-            foreach ($this->FIELDS as $field) {
+            foreach (static::FIELDS as $field) {
                 $fieldData = $config->get($field);
                 if (!empty($fieldData) && is_array($fieldData)) {
                     $fields[$field] = $fieldData;
                 }
             }
+
             $methods = $this->getMethodsFromClass($reflection, $className);
+
             $array[] = [
                 'ClassName' => $className,
                 'TableName' => $schema->tableName($className),
@@ -163,15 +149,6 @@ TXT;
         $tmpFile = tempnam(sys_get_temp_dir(), 'ctx_');
         file_put_contents($tmpFile, $context);
 
-        // $response = ChatWithChatGPT::singleton()->talkToChatGPT(
-        //     'files',
-        //     'POST',
-        //     [
-        //         'purpose' => 'assistants',
-        //         'file' => new CURLFile($tmpFile, 'application/json', 'context.json'),
-        //     ],
-        //     false
-        // );
         $response = ChatWithChatGPT::singleton()->SendFileToChatGPT($context);
 
         if (empty($response['id'])) {
@@ -182,11 +159,13 @@ TXT;
 
     protected function createAssistant(string $fileId): string
     {
-        $contextInstructions = Config::inst()->get(static::class, 'context_instructions');
-        $phpRules = Config::inst()->get(static::class, 'standard_instructions');
-        $modelName = Config::inst()->get(static::class, 'model_name');
-        $temperature = Config::inst()->get(static::class, 'temperature');
-        $response = ChatWithChatGPT::singleton()->talkToChatGPT(
+        $chat = ChatWithChatGPT::singleton();
+        $config = $chat->config();
+        $contextInstructions = $config->get('context_instructions');
+        $phpRules = $config->get('standard_instructions');
+        $modelName = $config->get('model_name');
+        $temperature = $config->get('temperature');
+        $response = $chat->talkToChatGPT(
             'assistants',
             'POST',
             [

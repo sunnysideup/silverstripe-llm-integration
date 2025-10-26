@@ -13,10 +13,11 @@ use SilverStripe\Security\Member;
 class LLMThreadProvider extends DataObject
 {
     private static string $table_name = 'LLMIntegration_LLMThreadProvider';
+    private static $singular_name = 'LLM Chat';
 
+    private static $plural_name = 'LLM Chats';
     private static array $db = [
         'ThreadID' => 'Varchar(255)',
-        'Answer' => 'Text',
         'Archived' => 'Boolean',
     ];
 
@@ -39,6 +40,10 @@ class LLMThreadProvider extends DataObject
         'User.Email' => 'User Email',
     ];
 
+    private static $cascade_deletes = [
+        'QuestionsAndAnswers',
+    ];
+
     public function canCreate($member = null, $context = []): bool
     {
         return false;
@@ -49,8 +54,25 @@ class LLMThreadProvider extends DataObject
         return false;
     }
 
-    public function canEdit($member = null): bool
+
+    public function onAfterWrite()
     {
-        return false;
+        parent::onAfterWrite();
+        if ($this->Archived) {
+            $threads = $this->Thread()->filter(['Archived' => false]);
+            foreach ($threads as $thread) {
+                $thread->Archived = true;
+                $thread->write();
+            }
+        }
+    }
+    public function getReadonlyFields(): array
+    {
+        return [
+            'ThreadID',
+            'ContextID',
+            'UserID',
+            'QuestionsAndAnswers',
+        ];
     }
 }

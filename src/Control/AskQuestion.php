@@ -37,9 +37,6 @@ class AskQuestion extends Controller
         'getfinalanswer' => 'ADMIN',
     ];
 
-    private static string $reminder_text = <<<TXT
-Reminder: Return only PHP 8.3 Silverstripe ORM code. Last line must be return with human explanation.
-TXT;
 
     private static string $url_segment = 'ask-question';
 
@@ -128,8 +125,9 @@ TXT;
         $threadId = $threadObject->ThreadID;
 
         // pose question
-        $reminder = Config::inst()->get(static::class, 'reminder_text');
-        ChatWithChatGPT::singleton()->talkToChatGPT("threads/{$threadId}/messages", 'POST', [
+        $chat = ChatWithChatGPT::singleton();
+        $reminder = $chat->config()->get(static::class, 'reminder_text');
+        $chat->talkToChatGPT("threads/{$threadId}/messages", 'POST', [
             'role' => 'user',
             'content' => $reminder . "\n\nQuestion: " . $question,
         ]);

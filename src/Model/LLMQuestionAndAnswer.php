@@ -13,7 +13,9 @@ use SilverStripe\Security\Member;
 class LLMQuestionAndAnswer extends DataObject
 {
     private static string $table_name = 'LLMIntegration_LLMQuestionAndAnswer';
+    private static $singular_name = 'LLM Question and Answer';
 
+    private static $plural_name = 'LLM Questions and Answers';
     private static array $db = [
         'Question' => 'Text',
         'PHPRetrievalStarted' => 'Boolean',
@@ -48,6 +50,10 @@ class LLMQuestionAndAnswer extends DataObject
         'Archived' => true
     ];
 
+    private static $cascade_deletes = [
+        'Thread',
+    ];
+
     public function canCreate($member = null, $context = []): bool
     {
         return false;
@@ -58,8 +64,29 @@ class LLMQuestionAndAnswer extends DataObject
         return false;
     }
 
-    public function canEdit($member = null): bool
+    public function getCMSFields()
     {
-        return false;
+        $fields = parent::getCMSFields();
+        foreach (['Question', 'Answer', 'PHPCode'] as $fieldName) {
+            $field = $fields->dataFieldByName($fieldName);
+            if ($field) {
+                $field->setReadonly(true);
+            }
+        }
+        return $fields;
+    }
+
+    public function getReadonlyFields(): array
+    {
+        return [
+            'Question',
+            'PHPRetrievalStarted',
+            'PHPRetrievalCompleted',
+            'RunID',
+            'PHPCode',
+            'PHPExecutionStarted',
+            'PHPExecutionCompleted',
+            'ThreadID',
+        ];
     }
 }

@@ -12,6 +12,9 @@ use SilverStripe\ORM\DataObject;
 class ModelContextProvider extends DataObject
 {
     private static string $table_name = 'LLMIntegration_ModelContextProvider';
+    private static $singular_name = 'Model Context Provider';
+
+    private static $plural_name = 'Model Context Providers';
 
     private static array $db = [
         'Hash' => 'Varchar(255)',
@@ -21,9 +24,6 @@ class ModelContextProvider extends DataObject
         'Archived' => 'Boolean',
     ];
 
-    private static $singular_name = 'Model Context Provider';
-
-    private static $plural_name = 'Model Context Providers';
 
     private static array $has_many = [
         'LLMThreads' => LLMThreadProvider::class,
@@ -38,7 +38,12 @@ class ModelContextProvider extends DataObject
         'Hash' => 'Hash',
         'SentToLLM.Nice' => 'Sent To LLM',
         'LLMFileID' => 'LLM File ID',
-        'LLMThreads.Count' => 'Number of LLM Threads',
+        'LLMThreads.Count' => 'Number of LLM Chats',
+    ];
+
+    private static array $field_labels = [
+        'LLMThreads' => 'LLM Chats',
+        'LLMThreads.Count' => 'Number of LLM Chats',
     ];
 
     private static array $indexes = [
@@ -60,8 +65,27 @@ class ModelContextProvider extends DataObject
         return false;
     }
 
-    public function canEdit($member = null): bool
+
+    public function onAfterWrite()
     {
-        return false;
+        parent::onAfterWrite();
+        if ($this->Archived) {
+            $questionsAndAnswers = $this->QuestionsAndAnswers()->filter(['Archived' => false]);
+            foreach ($questionsAndAnswers as $questionsAndAnswer) {
+                $questionsAndAnswer->Archived = true;
+                $questionsAndAnswer->write();
+            }
+        }
+    }
+
+    public function getReadonlyFields(): array
+    {
+        return [
+            'Hash',
+            'SentToLLM',
+            'LLMFileID',
+            'AssistantID',
+            'LLMThreads',
+        ];
     }
 }
