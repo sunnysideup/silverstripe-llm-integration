@@ -25,6 +25,8 @@ use Throwable;
 
 class AskQuestion extends Controller
 {
+    protected $debug = false;
+
     private static array $allowed_actions = [
         'index' => 'ADMIN',
         'QuestionForm' => 'ADMIN',
@@ -127,13 +129,13 @@ TXT;
 
         // pose question
         $reminder = Config::inst()->get(static::class, 'reminder_text');
-        ChatWithChatGPT::talk_to_chatgpt("threads/{$threadId}/messages", 'POST', [
+        ChatWithChatGPT::singleton()->talkToChatGPT("threads/{$threadId}/messages", 'POST', [
             'role' => 'user',
             'content' => $reminder . "\n\nQuestion: " . $question,
         ]);
 
         // get run id
-        $run = ChatWithChatGPT::talk_to_chatgpt('threads/runs', 'POST', [
+        $run = ChatWithChatGPT::singleton()->talkToChatGPT('threads/runs', 'POST', [
             'assistant_id' => $assistantId,
             'thread_id' => $threadId,
         ]);
@@ -171,7 +173,7 @@ TXT;
         $count = 0;
         do {
             sleep(2);
-            $status = ChatWithChatGPT::talk_to_chatgpt("threads/{$threadId}/runs/{$runId}");
+            $status = ChatWithChatGPT::singleton()->talkToChatGPT("threads/{$threadId}/runs/{$runId}");
             $state = $status['status'] ?? '';
             $count++;
         } while ($state !== 'completed' && $state !== 'failed' && $count < 10);
@@ -186,7 +188,7 @@ TXT;
         }
 
         // get PHP answer
-        $messages = ChatWithChatGPT::talk_to_chatgpt("threads/{$threadId}/messages");
+        $messages = ChatWithChatGPT::singleton()->talkToChatGPT("threads/{$threadId}/messages");
         $latest = $messages['data'][0] ?? end($messages['data']) ?? null;
         $answer = $latest['content'][0]['text']['value'] ?? 'echo "<p>No answer received from assistant.</p>";';
 
@@ -224,7 +226,11 @@ TXT;
 
             $answer = eval($fx);
             if ($answer === null) {
-                $answer = 'No result returned. We tried to run the following PHP code but it did not return anything. Please ensure the last line of the PHP code is a return statement: ' . $php;
+                if ($this->debug) {
+                    $answer = 'No result returned. We tried to run the following PHP code but it did not return anything. Please ensure the last line of the PHP code is a return statement: ' . $php;
+                } else {
+                    $answer = 'No result returned.';
+                }
             }
         } catch (Throwable $e) {
             $answer = 'Error: ' . $e->getMessage();
@@ -282,7 +288,7 @@ TXT;
             return $this->threadCache;
         }
         $context = $this->getContext();
-        $this->threadCache = BuildThread::create_thread($context);
+        $this->threadCache = BuildThread::singleton()->CreateThread($context);
         return $this->threadCache;
     }
 

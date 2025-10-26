@@ -28,7 +28,7 @@ class BuildThread
     private static int $age_limit_in_hours = 48;
 
 
-    public static function create_thread(ModelContextProvider $context): static|LLMThreadProvider
+    public function CreateThread(ModelContextProvider $context): static|LLMThreadProvider
     {
         $hours = Config::inst()->get(static::class, 'age_limit_in_hours');
         $filter = [
@@ -40,7 +40,7 @@ class BuildThread
         if ($existing && $existing->ThreadID) {
             return $existing;
         }
-        $thread = ChatWithChatGPT::talk_to_chatgpt('threads', 'POST');
+        $thread = ChatWithChatGPT::singleton()->talkToChatGPT('threads', 'POST');
         $threadId = $thread['id'] ?? null;
 
         if (empty($threadId)) {

@@ -26,12 +26,33 @@ class ChatWithChatGPT
     use Injectable;
     use Extensible;
 
-    public static function talk_to_chatgpt(
+    public function AskQuestionOutsideOfThread(
+        string $question,
+        ?array $additionalData = null
+    ): array {
+        $data = array_merge(
+            [
+                'model' => 'gpt-4o',
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => $question,
+                    ],
+                ],
+            ],
+            $additionalData ?? []
+        );
+
+        return $this->talkToChatGPT('chat/completions', 'POST', $data);
+    }
+
+    public function talkToChatGPT(
         string $endpoint,
         string $method = 'GET',
         ?array $data = null,
         bool $sendingJson = true
     ): array {
+
         $apiKey = Environment::getEnv('SS_LLM_CLIENT_API_KEY');
         if (!$apiKey) {
             throw new RuntimeException('Missing SS_LLM_CLIENT_API_KEY environment variable.');
@@ -43,32 +64,41 @@ class ChatWithChatGPT
 
         $ch = curl_init($url);
 
-        $headers = ['Authorization: Bearer ' . $apiKey];
+        // Always start with Authorization header
+        $headers = [
+            'Authorization: Bearer ' . $apiKey,
+            'OpenAI-Beta: assistants=v2'
+        ];
 
         $options = [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST => $method,
-            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_CUSTOMREQUEST => strtoupper($method),
         ];
 
-        // JSON or multipart body
+        // Handle body
         if ($data !== null) {
             if ($sendingJson) {
                 $headers[] = 'Content-Type: application/json';
                 $options[CURLOPT_POSTFIELDS] = json_encode($data, JSON_THROW_ON_ERROR);
             } else {
-                $options[CURLOPT_POSTFIELDS] = $data; // already prepared (e.g., with CURLFile)
+                // ❗ Remove any Content-Type headers completely
+                $headers = array_filter($headers, fn($h) => stripos($h, 'Content-Type:') === false);
+                $options[CURLOPT_POSTFIELDS] = $data;
             }
-            $options[CURLOPT_HTTPHEADER] = $headers;
-            if (in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'])) {
+
+            if (strtoupper($method) === 'POST') {
                 $options[CURLOPT_POST] = true;
+            } else {
+                $options[CURLOPT_CUSTOMREQUEST] = $method;
             }
         }
 
-        curl_setopt_array($ch, $options);
+        $options[CURLOPT_HTTPHEADER] = array_values($headers);
 
+        curl_setopt_array($ch, $options);
         $response = curl_exec($ch);
         $error = curl_error($ch);
+        $info = curl_getinfo($ch);
         curl_close($ch);
 
         if ($error) {
@@ -77,9 +107,36 @@ class ChatWithChatGPT
 
         $decoded = json_decode($response, true);
         if ($decoded === null) {
-            throw new RuntimeException("Invalid JSON response from OpenAI: $response");
+            throw new RuntimeException(
+                "Invalid JSON response from OpenAI: $response\n\n" .
+                    "Request info:\n" . json_encode($info, JSON_PRETTY_PRINT)
+            );
         }
 
+        return $decoded;
+    }
+
+    public function SendFileToChatGPT($content)
+    {
+        $apiKey = Environment::getEnv('SS_LLM_CLIENT_API_KEY');
+        $tmp = tempnam(sys_get_temp_dir(), 'ctx_');
+        file_put_contents($tmp, $content);
+
+        $ch = curl_init('https://api.openai.com/v1/files');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $apiKey,
+            ],
+            CURLOPT_POSTFIELDS => [
+                'purpose' => 'assistants',
+                'file' => new CURLFile($tmp, 'application/json', 'context.json'),
+            ],
+        ]);
+        $response = curl_exec($ch);
+        $err = curl_error($ch);
+        $decoded = json_decode($response, true);
         return $decoded;
     }
 }
