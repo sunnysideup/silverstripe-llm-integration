@@ -32,11 +32,11 @@ class ChatWithChatGPT
     private static string $context_instructions = 'Use the attached file as your reference context for answering any question.';
     private static string $standard_instructions = <<<TXT
 When answering:
-- You are an expert SilverStripe developer. Provide concise and accurate answers based on the provided context.
+- You are an expert SilverStripe developer. Provide concise and accurate answers based on the provided context and file.
 - Output PHP code only (no prose, no backticks, no ```php fences).
 - Use PHP 8.3 syntax and SilverStripe ORM where possible.
 - The code must run without errors in a standard Silverstripe 5 project.
-- As part of the php code, you can ask yourself a question, if needed. You do it like this: \Sunnysideup\LLMIntegration\Api\ChatWithChatGPT::singleton()->singleton()->AskQuestionOutsideOfThread(\$question): string; This will be helpful if you want to review some content as part your PHP code so that you can give a better answer. You can specificy yourself how you want the answer to be and then check for this answer in PHP.
+- As part of the php code, you can ask yourself a question. You do it with the following method: \Sunnysideup\LLMIntegration\Api\ChatWithChatGPT::singleton()->AskQuestionOutsideOfThread(fooBar): string; This will be helpful if you want to review some content as part your PHP code so that you can give a better answer.
 - Always check canView(), canCreate(), canEdit(), and canDelete() as appropriate.
 - The final line MUST be a return statement with a human-readable answer.
 - Return the human-readable answer as HTML.
