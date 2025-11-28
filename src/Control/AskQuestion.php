@@ -126,14 +126,14 @@ class AskQuestion extends Controller
 
         // pose question
         $chat = ChatWithChatGPT::singleton();
-        $reminder = $chat->config()->get(static::class, 'reminder_text');
+        $reminder = $chat->config()->get('reminder_text');
         $chat->talkToChatGPT("threads/{$threadId}/messages", 'POST', [
             'role' => 'user',
             'content' => $reminder . "\n\nQuestion: " . $question,
         ]);
 
         // get run id
-        $run = ChatWithChatGPT::singleton()->talkToChatGPT('threads/runs', 'POST', [
+        $run = $chat->talkToChatGPT('threads/runs', 'POST', [
             'assistant_id' => $assistantId,
             'thread_id' => $threadId,
         ]);
